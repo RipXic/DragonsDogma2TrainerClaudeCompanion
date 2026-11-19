@@ -1,0 +1,52 @@
+Dragon's Dogma 2 Trainer - Claude Companion - Source-Available License (No Redistribution)
+Copyright (c) 2026 RipXic. All rights reserved.
+
+This repository contains the source code of the Dragon's Dogma 2 Trainer Claude Companion ("the Software"), an
+optional add-on for the Dragon's Dogma 2 Trainer by RipXic. The source is published so that anyone can read it, check
+what it does, and run it for themselves. It is NOT open source.
+
+1. What you MAY do
+   a. Read and study the source code.
+   b. Run the Software on your own computer, for your own single-player use.
+   c. Make changes for your own private, personal use, as long as you never share the changed version (see 2).
+   d. Link to this repository or to the official download page:
+      https://github.com/RipXic/DragonsDogma2TrainerClaudeCompanion/releases
+
+2. What you may NOT do without written permission from RipXic
+   a. Redistribute, re-upload, mirror or share the Software, its source code, or any part of it, on any website, mod
+      site, file host, launcher, mod pack, collection, Discord server or anywhere else.
+   b. Publish or distribute modified versions, forks, ports or derivative works (including "fixed", "updated",
+      translated or re-branded versions).
+   c. Use the Software, its source code or any part of it in another product, trainer, tool or project.
+   d. Sell, rent, license or otherwise make money from the Software or anything built from it, including putting it
+      behind a paywall, subscription or "early access".
+   e. Remove or change this license, the copyright notice, or the credits.
+   f. Use the Software in online / multiplayer sessions to gain an advantage over other players.
+   g. Use the Software, its source code or any part of it to train, fine-tune, evaluate or build datasets for
+      artificial intelligence or machine-learning models or code assistants, or feed it to an AI tool in order to
+      produce a copy, port, rewrite or derivative of it for distribution. This applies to people and to automated
+      systems (crawlers, scrapers, AI agents) alike. Reading the code with an AI tool for your own private
+      understanding or your own private use (section 1) is allowed; publishing anything produced that way is not.
+      (The Software's own "Ask Claude" feature, used as intended, is not affected by this point.)
+
+3. GitHub
+   When this repository is public on GitHub, GitHub's Terms of Service allow GitHub users to view and fork public
+   repositories on GitHub itself; that permission exists only as far as GitHub's terms require it. A fork does not
+   grant any of the rights withheld in section 2: you may not distribute, release or publish versions from a fork.
+
+4. Third-party code
+   The Software contains no third-party code. It runs on Windows PowerShell (part of Windows) and, for the optional
+   "Ask Claude" feature, starts the Claude Code program that comes with the Claude desktop app, which you install
+   yourself under its own terms. This license covers everything in this repository.
+
+5. No warranty
+   The Software is provided "as is", without warranty of any kind. Use it at your own risk and keep your own backups.
+   The author is not liable for any damage, data loss, costs on your Claude plan, bans or other problems that come
+   from using it.
+
+6. Not affiliated
+   The Dragon's Dogma 2 Trainer and this companion are fan-made tools. They are not affiliated with, endorsed by or
+   connected to Capcom or Anthropic. Dragon's Dogma and its content belong to Capcom; Claude belongs to Anthropic.
+
+If you want to do something that section 2 does not allow (for example host it on another site, or use part of the
+code), ask RipXic through the GitHub repository above (open an issue). Permission only counts if it is given in writing.
