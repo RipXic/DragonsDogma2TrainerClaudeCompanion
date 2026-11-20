@@ -25,7 +25,7 @@ param(
     [int]$AskTimeoutSec = 180
 )
 $ErrorActionPreference = 'Continue'
-$Version = '1.0'
+$Version = '1.1'
 $AppId = '2054970'                           # Dragon's Dogma 2 on Steam
 $Here = $PSScriptRoot
 
@@ -80,7 +80,7 @@ if (-not $Game -or -not (Test-Path $Game)) {
     Say '  start_companion.bat -Game "D:\Path\To\Dragons Dogma 2"' Yellow
     exit 1
 }
-if (-not (Test-Path (Join-Path $Game 'reframework\autorun\wildframe_dd2_panel.lua'))) {
+if (-not (Test-Path (Join-Path $Game 'reframework\autorun\ripxic_dd2_panel.lua')) -and -not (Test-Path (Join-Path $Game 'reframework\autorun\wildframe_dd2_panel.lua'))) {
     Say "Warning: the trainer was not found in $Game\reframework\autorun - install REFramework and the trainer first." Yellow
 }
 if (-not $BackupRoot) { $BackupRoot = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'DD2 Trainer save backups' }
@@ -105,12 +105,12 @@ function Write-Json($path, $obj) {
     [IO.File]::WriteAllText($tmp, ($obj | ConvertTo-Json -Depth 6 -Compress), (New-Object Text.UTF8Encoding $false))
     Move-Item $tmp $path -Force
 }
-$script:lastBackup = $null; $script:asks = 0; $script:backups = 0
+$script:lastBackup = $null; $script:asks = 0; $script:backups = 0; $script:thinking = $false
 function Write-Status {
     # clock = UTC unix seconds (the trainer compares it with os.time to see the companion is alive)
     Write-Json (Join-Path $Data 'status.json') @{ running = $true; version = $Version; time = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss');
         clock = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds(); claude = [bool]($Claude -and (Test-Path $SystemFile)); saves = [bool]$SaveDir;
-        backups = $script:backups; asks = $script:asks; last_backup = $script:lastBackup }
+        backups = $script:backups; asks = $script:asks; last_backup = $script:lastBackup; thinking = [bool]$script:thinking }
 }
 
 # ---------------------------------------------------------------- save backups
@@ -140,7 +140,14 @@ function Do-Ask($req) {
         $p | & $exe -p --output-format json --tools '""' --strict-mcp-config --no-session-persistence `
             --model $model --max-budget-usd $budget --system-prompt-file $sysfile 2>&1
     } -ArgumentList $Claude, $prompt, $SystemFile, $Model, $BudgetUsd
-    if (-not (Wait-Job $job -Timeout $AskTimeoutSec)) { Stop-Job $job; Remove-Job $job -Force; return @{ ok = $false; error = "no answer after $AskTimeoutSec s" } }
+    # wait in 1 s steps and keep status.json fresh: a single long wait stopped the heartbeat, so while Claude was
+    # thinking the trainer said "The Claude companion is not running" (1.0 bug, fixed in 1.1)
+    $script:thinking = $true; $deadline = (Get-Date).AddSeconds($AskTimeoutSec)
+    while (-not (Wait-Job $job -Timeout 1)) {
+        Write-Status
+        if ((Get-Date) -gt $deadline) { $script:thinking = $false; Stop-Job $job; Remove-Job $job -Force; return @{ ok = $false; error = "no answer after $AskTimeoutSec s" } }
+    }
+    $script:thinking = $false
     $out = (Receive-Job $job | Out-String); Remove-Job $job -Force
     $script:asks++
     try { $j = $out | ConvertFrom-Json } catch { return @{ ok = $false; error = 'could not read the answer: ' + $out.Substring(0, [Math]::Min(300, $out.Length)) } }
