@@ -1,4 +1,4 @@
-# Dragon's Dogma 2 Trainer by RipXic - Claude companion  v1.0
+# Dragon's Dogma 2 Trainer by RipXic - Claude companion  v1.1
 # Optional add-on for the trainer. It runs in its own window next to the game and does two things a REFramework Lua
 # mod cannot do by itself:
 #   * save backups: copies your Steam save folder before the trainer changes something that is saved with your game
@@ -80,7 +80,7 @@ if (-not $Game -or -not (Test-Path $Game)) {
     Say '  start_companion.bat -Game "D:\Path\To\Dragons Dogma 2"' Yellow
     exit 1
 }
-if (-not (Test-Path (Join-Path $Game 'reframework\autorun\ripxic_dd2_panel.lua')) -and -not (Test-Path (Join-Path $Game 'reframework\autorun\wildframe_dd2_panel.lua'))) {
+if (-not (Test-Path (Join-Path $Game 'reframework\autorun\ripxic_dd2_panel.lua'))) {
     Say "Warning: the trainer was not found in $Game\reframework\autorun - install REFramework and the trainer first." Yellow
 }
 if (-not $BackupRoot) { $BackupRoot = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'DD2 Trainer save backups' }
