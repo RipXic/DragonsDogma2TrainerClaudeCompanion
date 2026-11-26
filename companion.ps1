@@ -19,13 +19,14 @@
 param(
     [string]$Game = '',                      # game folder; empty = found through Steam
     [string]$BackupRoot = '',                # empty = Documents\DD2 Trainer save backups
+    [string]$SlotRoot = '',                  # empty = Documents\DD2 Trainer save slots
     [int]$Keep = 40,                         # newest backups kept
     [string]$Model = 'claude-sonnet-5-5',    # Claude model for Ask Claude
     [double]$BudgetUsd = 0.5,                # spending cap per question
     [int]$AskTimeoutSec = 180
 )
 $ErrorActionPreference = 'Continue'
-$Version = '1.1'
+$Version = '1.2'
 $AppId = '2054970'                           # Dragon's Dogma 2 on Steam
 $Here = $PSScriptRoot
 
@@ -84,6 +85,8 @@ if (-not (Test-Path (Join-Path $Game 'reframework\autorun\ripxic_dd2_panel.lua')
     Say "Warning: the trainer was not found in $Game\reframework\autorun - install REFramework and the trainer first." Yellow
 }
 if (-not $BackupRoot) { $BackupRoot = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'DD2 Trainer save backups' }
+if (-not $SlotRoot) { $SlotRoot = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'DD2 Trainer save slots' }
+New-Item -ItemType Directory -Force $SlotRoot | Out-Null
 $Data = Join-Path $Game 'reframework\data\wf_companion'
 $ReqDir = Join-Path $Data 'req'; $AnsDir = Join-Path $Data 'ans'
 New-Item -ItemType Directory -Force $ReqDir, $AnsDir, $BackupRoot | Out-Null
@@ -96,6 +99,7 @@ Say "Dragon's Dogma 2 Trainer by RipXic - Claude companion $Version" Cyan
 Say "  game     : $Game"
 Say "  saves    : $(if ($SaveDir) { $SaveDir } else { 'NOT FOUND - backups are off' })"
 Say "  backups  : $BackupRoot (newest $Keep kept)"
+Say "  slots    : $SlotRoot"
 Say "  claude   : $(if ($Claude) { $Claude } else { 'NOT FOUND - Ask Claude is off (install the Claude desktop app and sign in)' })"
 if (-not (Test-Path $SystemFile)) { Say "  system_prompt.txt is missing next to companion.ps1 - Ask Claude is off" Yellow }
 Say "Keep this window open while you play. Close it to stop." DarkGray
@@ -124,6 +128,47 @@ function Do-Backup($req) {
     $script:lastBackup = $name; $script:backups++
     Say "backup  $name" Green
     return @{ ok = $true; text = "save backed up: $name" }
+}
+
+# ---------------------------------------------------------------- save slots (1.2)
+# Named copies of your whole save folder, so you can keep several games side by side (Dragon's Dogma 2 has one).
+#   slot_save   { name }            copies the save folder to <SlotRoot>\<name> (an existing slot of that name is replaced)
+#   slot_list                       the slots, newest first
+#   slot_load   { name, at_title }  only from the title screen: backs up the current save, then copies the slot in
+#   slot_delete { name }            moves the slot to the Recycle Bin
+function Slot-Name($n) { $n = ([string]$n -replace '[^\w\- ]', '').Trim(); if (-not $n) { $n = 'slot' }; return $n.Substring(0, [Math]::Min(40, $n.Length)) }
+function Do-SlotSave($req) {
+    if (-not $SaveDir) { return @{ ok = $false; error = 'save folder not found' } }
+    $name = Slot-Name $req.name; $dst = Join-Path $SlotRoot $name
+    if (Test-Path $dst) { Remove-Item $dst -Recurse -Force }
+    Copy-Item $SaveDir $dst -Recurse -Force
+    Say "slot    saved '$name'" Green
+    return @{ ok = $true; text = "saved to slot `"$name`"" }
+}
+function Do-SlotList($req) {
+    $list = @(Get-ChildItem $SlotRoot -Directory -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending |
+        ForEach-Object { @{ name = $_.Name; time = $_.LastWriteTime.ToString('yyyy-MM-dd HH:mm') } })
+    return @{ ok = $true; slots = $list; text = "$($list.Count) slot(s)" }
+}
+function Do-SlotLoad($req) {
+    if (-not $SaveDir) { return @{ ok = $false; error = 'save folder not found' } }
+    if (-not $req.at_title) { return @{ ok = $false; error = 'go to the title screen first (Quit Game in the menu), then load the slot' } }
+    $name = Slot-Name $req.name; $src = Join-Path $SlotRoot $name
+    if (-not (Test-Path $src)) { return @{ ok = $false; error = "slot `"$name`" not found" } }
+    $b = Do-Backup @{ label = "before slot $name" }
+    if (-not $b.ok) { return @{ ok = $false; error = 'could not back up the current save first - nothing changed' } }
+    Get-ChildItem $SaveDir -File | Remove-Item -Force
+    Copy-Item (Join-Path $src '*') $SaveDir -Recurse -Force
+    Say "slot    loaded '$name' (current save backed up first)" Green
+    return @{ ok = $true; text = "slot `"$name`" is now your save - choose Load Game. Your previous save was backed up." }
+}
+function Do-SlotDelete($req) {
+    $name = Slot-Name $req.name; $p = Join-Path $SlotRoot $name
+    if (-not (Test-Path $p)) { return @{ ok = $false; error = "slot `"$name`" not found" } }
+    Add-Type -AssemblyName Microsoft.VisualBasic
+    [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory($p, 'OnlyErrorDialogs', 'SendToRecycleBin')
+    Say "slot    '$name' moved to the Recycle Bin" Green
+    return @{ ok = $true; text = "slot `"$name`" moved to the Recycle Bin" }
 }
 
 # ---------------------------------------------------------------- Ask Claude
@@ -176,7 +221,9 @@ while ($true) {
         try { $req = Get-Content $f.FullName -Raw | ConvertFrom-Json } catch { Start-Sleep -Milliseconds 200; continue }   # still being written
         Remove-Item $f.FullName -Force -ErrorAction SilentlyContinue
         if (-not $req.id) { continue }
-        $res = switch ($req.kind) { 'backup' { Do-Backup $req } 'ask' { Do-Ask $req } default { @{ ok = $false; error = "unknown request $($req.kind)" } } }
+        $res = switch ($req.kind) { 'backup' { Do-Backup $req } 'ask' { Do-Ask $req }
+            'slot_save' { Do-SlotSave $req } 'slot_list' { Do-SlotList $req } 'slot_load' { Do-SlotLoad $req } 'slot_delete' { Do-SlotDelete $req }
+            default { @{ ok = $false; error = "unknown request $($req.kind)" } } }
         $res.id = $req.id
         Write-Json (Join-Path $AnsDir "$($req.id).json") $res
         Get-ChildItem $AnsDir -Filter '*.json' | Where-Object { $_.LastWriteTime -lt (Get-Date).AddHours(-1) } | Remove-Item -Force -ErrorAction SilentlyContinue
